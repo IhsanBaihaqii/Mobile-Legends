@@ -1,0 +1,6 @@
+{
+  "name": "MLBB Hero & Synergy Explorer",
+  "description": "Platform database dan eksplorasi hero Mobile Legends: Bang Bang dengan data real-time, sinergi counter, analisis skill, dan rekomendasi kombo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
