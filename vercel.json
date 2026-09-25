@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/hero/:id",
+      "destination": "/api/hero?id=:id"
+    },
+    {
+      "source": "/api/hero",
+      "destination": "/api/hero"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
