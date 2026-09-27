@@ -1,37 +1,38 @@
 // src/pages/HeroPage.jsx
 // Halaman mandiri /hero/:id dengan tombol kembali, detail lengkap, dan fitur chatbot
 
-import React, { useState, useEffect } from 'react';
-import { ROLE_META, LANE_ICONS } from '../data/roles.js';
-import { mlbbService } from '../services/mlbbService.js';
-import HeroChatBot from '../components/bot/HeroChatBot.jsx';
+import React, { useState, useEffect } from "react";
+import { ROLE_META, LANE_ICONS } from "../data/roles.js";
+import { mlbbService } from "../services/mlbbService.js";
+import HeroChatBot from "../components/bot/HeroChatBot.jsx";
 
 export default function HeroPage({ heroId, onBack }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview'); // overview | skills | stats | relations | combos | bot
+  const [activeTab, setActiveTab] = useState("overview"); // overview | skills | stats | relations | combos | bot
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
     setError(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
-    mlbbService.fetchHeroDetail(heroId)
+    mlbbService
+      .fetchHeroDetail(heroId)
       .then((res) => {
         if (isMounted) {
           if (res.ok) {
             setData(res);
           } else {
-            setError(res.message || 'Gagal memuat detail hero');
+            setError(res.message || "Gagal memuat detail hero");
           }
           setLoading(false);
         }
       })
       .catch((err) => {
         if (isMounted) {
-          setError(err.message || 'Koneksi gagal');
+          setError(err.message || "Koneksi gagal");
           setLoading(false);
         }
       });
@@ -41,13 +42,16 @@ export default function HeroPage({ heroId, onBack }) {
     };
   }, [heroId]);
 
-  const pct = (v) => (Number(v || 0) * 100).toFixed(2) + '%';
+  const pct = (v) => (Number(v || 0) * 100).toFixed(2) + "%";
 
   const renderSkillDesc = (s) => {
-    if (!s) return '';
+    if (!s) return "";
     const formatted = s
-      .replace(/<font color=["']?#?([0-9a-fA-F]{6})["']?>/g, '<span style="color:#$1;font-weight:600">')
-      .replace(/<\/font>/g, '</span>');
+      .replace(
+        /<font color=["']?#?([0-9a-fA-F]{6})["']?>/g,
+        '<span style="color:#$1;font-weight:600">',
+      )
+      .replace(/<\/font>/g, "</span>");
     return <span dangerouslySetInnerHTML={{ __html: formatted }} />;
   };
 
@@ -70,7 +74,9 @@ export default function HeroPage({ heroId, onBack }) {
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-gray-400 hidden sm:inline">Path:</span>
+            <span className="text-xs font-mono text-gray-400 hidden sm:inline">
+              Path:
+            </span>
             <span className="text-xs font-mono text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
               /hero/{heroId}
             </span>
@@ -83,14 +89,18 @@ export default function HeroPage({ heroId, onBack }) {
         {loading && (
           <div className="py-32 text-center">
             <i className="fa-solid fa-circle-notch fa-spin text-amber-400 text-3xl mb-3"></i>
-            <p className="text-xs text-gray-400">Memuat data live hero #{heroId} dari API Moonton...</p>
+            <p className="text-xs text-gray-400">
+              Memuat data live hero #{heroId} dari API Moonton...
+            </p>
           </div>
         )}
 
         {error && (
           <div className="py-24 text-center max-w-md mx-auto">
             <i className="fa-solid fa-triangle-exclamation text-rose-500 text-4xl mb-3"></i>
-            <h3 className="text-base font-bold text-white mb-1">Gagal Memuat Data Hero</h3>
+            <h3 className="text-base font-bold text-white mb-1">
+              Gagal Memuat Data Hero
+            </h3>
             <p className="text-xs text-gray-400 mb-4">{error}</p>
             <button
               onClick={onBack}
@@ -137,7 +147,10 @@ export default function HeroPage({ heroId, onBack }) {
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-2.5">
                     {hero.roles?.map((r) => {
-                      const m = ROLE_META[r.title] || { icon: 'fa-tag', color: 'bg-gray-800 text-gray-300 border-gray-700' };
+                      const m = ROLE_META[r.title] || {
+                        icon: "fa-tag",
+                        color: "bg-gray-800 text-gray-300 border-gray-700",
+                      };
                       return (
                         <span
                           key={r.title}
@@ -150,7 +163,7 @@ export default function HeroPage({ heroId, onBack }) {
                     })}
 
                     {hero.lanes?.map((l) => {
-                      const ic = LANE_ICONS[l.title] || 'fa-road';
+                      const ic = LANE_ICONS[l.title] || "fa-road";
                       return (
                         <span
                           key={l.title}
@@ -165,20 +178,27 @@ export default function HeroPage({ heroId, onBack }) {
 
                   {hero.speciality?.length > 0 && (
                     <p className="text-xs text-gray-400">
-                      Spesialisasi: <span className="text-gray-200">{hero.speciality.join(' • ')}</span>
+                      Spesialisasi:{" "}
+                      <span className="text-gray-200">
+                        {hero.speciality.join(" • ")}
+                      </span>
                     </p>
                   )}
                 </div>
 
                 {/* Difficulty & Skill Priority */}
                 <div className="hidden sm:block text-right shrink-0">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">Tingkat Kesulitan</p>
+                  <p className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                    Tingkat Kesulitan
+                  </p>
                   <div className="flex items-center gap-1 text-sm justify-end">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <i
                         key={star}
                         className={`fa-solid fa-star ${
-                          star <= Math.round((hero.difficulty || 0) / 20) ? 'text-amber-400' : 'text-gray-700'
+                          star <= Math.round((hero.difficulty || 0) / 20)
+                            ? "text-amber-400"
+                            : "text-gray-700"
                         }`}
                       ></i>
                     ))}
@@ -186,7 +206,10 @@ export default function HeroPage({ heroId, onBack }) {
 
                   {hero.recommendLevel && (
                     <p className="text-[11px] text-gray-400 mt-2.5">
-                      Skill Up: <span className="text-amber-400 font-semibold">{hero.recommendLevel}</span>
+                      Skill Up:{" "}
+                      <span className="text-amber-400 font-semibold">
+                        {hero.recommendLevel}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -196,20 +219,31 @@ export default function HeroPage({ heroId, onBack }) {
             {/* Navigation Tabs Bar */}
             <div className="flex gap-1.5 border-b border-white/10 overflow-x-auto pb-1">
               {[
-                { id: 'overview', label: 'Ringkasan', icon: 'fa-id-card' },
-                { id: 'skills', label: 'Skills', icon: 'fa-bolt' },
-                { id: 'stats', label: 'Stats & Sinergi', icon: 'fa-chart-pie' },
-                { id: 'relations', label: 'Matchup & Counter', icon: 'fa-shield-halved' },
-                ...(combos.length > 0 ? [{ id: 'combos', label: 'Kombo Skill', icon: 'fa-gamepad' }] : []),
-                { id: 'bot', label: 'Chat Bot Hero', icon: 'fa-robot', badge: 'Interactive' }
+                { id: "overview", label: "Ringkasan", icon: "fa-id-card" },
+                { id: "skills", label: "Skills", icon: "fa-bolt" },
+                { id: "stats", label: "Stats & Sinergi", icon: "fa-chart-pie" },
+                {
+                  id: "relations",
+                  label: "Matchup & Counter",
+                  icon: "fa-shield-halved",
+                },
+                ...(combos.length > 0
+                  ? [{ id: "combos", label: "Kombo Skill", icon: "fa-gamepad" }]
+                  : []),
+                {
+                  id: "bot",
+                  label: "Chat Bot Hero",
+                  icon: "fa-robot",
+                  badge: "Interactive",
+                },
               ].map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
                   className={`flex items-center gap-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold rounded-t-xl border-b-2 transition-all whitespace-nowrap ${
                     activeTab === t.id
-                      ? 'bg-amber-400/10 text-amber-400 border-amber-400'
-                      : 'text-gray-400 hover:text-white border-transparent hover:bg-white/5'
+                      ? "bg-amber-400/10 text-amber-400 border-amber-400"
+                      : "text-gray-400 hover:text-white border-transparent hover:bg-white/5"
                   }`}
                 >
                   <i className={`fa-solid ${t.icon}`}></i>
@@ -224,7 +258,7 @@ export default function HeroPage({ heroId, onBack }) {
             </div>
 
             {/* Tab 1: Overview */}
-            {activeTab === 'overview' && (
+            {activeTab === "overview" && (
               <div className="space-y-4">
                 {hero.story && (
                   <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-5">
@@ -232,7 +266,9 @@ export default function HeroPage({ heroId, onBack }) {
                       <i className="fa-solid fa-book-open"></i>
                       <span>Latar Cerita Hero</span>
                     </h3>
-                    <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">{hero.story}</p>
+                    <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
+                      {hero.story}
+                    </p>
                   </div>
                 )}
 
@@ -244,16 +280,28 @@ export default function HeroPage({ heroId, onBack }) {
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="p-3.5 bg-gray-950 rounded-xl border border-white/5">
-                        <span className="text-xs text-gray-400 block mb-1">Win Rate</span>
-                        <span className="text-xl font-bold font-mono text-emerald-400">{pct(stats.winRate)}</span>
+                        <span className="text-xs text-gray-400 block mb-1">
+                          Win Rate
+                        </span>
+                        <span className="text-xl font-bold font-mono text-emerald-400">
+                          {pct(stats.winRate)}
+                        </span>
                       </div>
                       <div className="p-3.5 bg-gray-950 rounded-xl border border-white/5">
-                        <span className="text-xs text-gray-400 block mb-1">Pick Rate</span>
-                        <span className="text-xl font-bold font-mono text-blue-400">{pct(stats.pickRate)}</span>
+                        <span className="text-xs text-gray-400 block mb-1">
+                          Pick Rate
+                        </span>
+                        <span className="text-xl font-bold font-mono text-blue-400">
+                          {pct(stats.pickRate)}
+                        </span>
                       </div>
                       <div className="p-3.5 bg-gray-950 rounded-xl border border-white/5">
-                        <span className="text-xs text-gray-400 block mb-1">Ban Rate</span>
-                        <span className="text-xl font-bold font-mono text-rose-400">{pct(stats.banRate)}</span>
+                        <span className="text-xs text-gray-400 block mb-1">
+                          Ban Rate
+                        </span>
+                        <span className="text-xl font-bold font-mono text-rose-400">
+                          {pct(stats.banRate)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -262,7 +310,7 @@ export default function HeroPage({ heroId, onBack }) {
             )}
 
             {/* Tab 2: Skills */}
-            {activeTab === 'skills' && (
+            {activeTab === "skills" && (
               <div className="space-y-3">
                 {hero.skills?.length > 0 ? (
                   hero.skills.map((sk) => (
@@ -275,13 +323,17 @@ export default function HeroPage({ heroId, onBack }) {
                           src={sk.icon}
                           alt={sk.name}
                           className="w-full h-full object-contain"
-                          onError={(e) => { e.target.style.display = 'none'; }}
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
                         />
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                          <h4 className="font-bold text-white text-sm sm:text-base">{sk.name}</h4>
+                          <h4 className="font-bold text-white text-sm sm:text-base">
+                            {sk.name}
+                          </h4>
                           {sk.cd && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-gray-400 font-mono">
                               {sk.cd}
@@ -292,9 +344,9 @@ export default function HeroPage({ heroId, onBack }) {
                               key={t.id || t.name}
                               className="text-[10px] px-2 py-0.5 rounded font-medium border"
                               style={{
-                                backgroundColor: `rgba(${t.rgb || '245,196,81'}, 0.15)`,
-                                color: `rgb(${t.rgb || '245,196,81'})`,
-                                borderColor: `rgba(${t.rgb || '245,196,81'}, 0.35)`
+                                backgroundColor: `rgba(${t.rgb || "245,196,81"}, 0.15)`,
+                                color: `rgb(${t.rgb || "245,196,81"})`,
+                                borderColor: `rgba(${t.rgb || "245,196,81"}, 0.35)`,
                               }}
                             >
                               {t.name}
@@ -308,13 +360,15 @@ export default function HeroPage({ heroId, onBack }) {
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-gray-400 text-center py-12">Tidak ada data skill untuk hero ini.</p>
+                  <p className="text-xs text-gray-400 text-center py-12">
+                    Tidak ada data skill untuk hero ini.
+                  </p>
                 )}
               </div>
             )}
 
             {/* Tab 3: Stats & Sinergi */}
-            {activeTab === 'stats' && (
+            {activeTab === "stats" && (
               <div className="space-y-4">
                 {stats ? (
                   <>
@@ -330,10 +384,18 @@ export default function HeroPage({ heroId, onBack }) {
                             className="rounded-xl border border-white/10 bg-gray-950 p-3 text-center"
                           >
                             <div className="w-12 h-12 mx-auto rounded-lg overflow-hidden border border-white/10 bg-gray-900 mb-2">
-                              <img src={x.head} alt={`Hero ${x.heroid}`} className="w-full h-full object-cover" />
+                              <img
+                                src={x.head}
+                                alt={`Hero ${x.heroid}`}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                            <p className="text-xs text-emerald-400 font-bold font-mono">{pct(x.winRate)} WR</p>
-                            <p className="text-[10px] text-gray-400">+{pct(x.increaseWinRate)}</p>
+                            <p className="text-xs text-emerald-400 font-bold font-mono">
+                              {pct(x.winRate)} WR
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              +{pct(x.increaseWinRate)}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -353,21 +415,27 @@ export default function HeroPage({ heroId, onBack }) {
                             <div className="w-12 h-12 mx-auto rounded-lg border border-white/10 bg-gray-900 flex items-center justify-center text-xs font-bold text-gray-400 mb-2 font-mono">
                               #{x.heroid}
                             </div>
-                            <p className="text-xs text-rose-400 font-bold font-mono">{pct(x.winRate)} WR</p>
-                            <p className="text-[10px] text-gray-400">{pct(x.increaseWinRate)}</p>
+                            <p className="text-xs text-rose-400 font-bold font-mono">
+                              {pct(x.winRate)} WR
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              {pct(x.increaseWinRate)}
+                            </p>
                           </div>
                         ))}
                       </div>
                     </div>
                   </>
                 ) : (
-                  <p className="text-xs text-gray-400 text-center py-12">Data statistik sinergi tidak tersedia.</p>
+                  <p className="text-xs text-gray-400 text-center py-12">
+                    Data statistik sinergi tidak tersedia.
+                  </p>
                 )}
               </div>
             )}
 
             {/* Tab 4: Matchup & Relations */}
-            {activeTab === 'relations' && (
+            {activeTab === "relations" && (
               <div className="space-y-4">
                 {relation.assist && (
                   <div className="rounded-2xl border border-white/10 bg-gray-900/80 p-5">
@@ -378,12 +446,21 @@ export default function HeroPage({ heroId, onBack }) {
                       </h4>
                     </div>
                     {relation.assist.desc && (
-                      <p className="text-xs text-gray-300 leading-relaxed mb-3">{relation.assist.desc}</p>
+                      <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                        {relation.assist.desc}
+                      </p>
                     )}
                     <div className="flex flex-wrap gap-2.5">
                       {relation.assist.heads?.map((h, i) => (
-                        <div key={i} className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow">
-                          <img src={h} alt="Partner hero" className="w-full h-full object-cover" />
+                        <div
+                          key={i}
+                          className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow"
+                        >
+                          <img
+                            src={h}
+                            alt="Partner hero"
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ))}
                     </div>
@@ -399,12 +476,21 @@ export default function HeroPage({ heroId, onBack }) {
                       </h4>
                     </div>
                     {relation.strong.desc && (
-                      <p className="text-xs text-gray-300 leading-relaxed mb-3">{relation.strong.desc}</p>
+                      <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                        {relation.strong.desc}
+                      </p>
                     )}
                     <div className="flex flex-wrap gap-2.5">
                       {relation.strong.heads?.map((h, i) => (
-                        <div key={i} className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow">
-                          <img src={h} alt="Countered hero" className="w-full h-full object-cover" />
+                        <div
+                          key={i}
+                          className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow"
+                        >
+                          <img
+                            src={h}
+                            alt="Countered hero"
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ))}
                     </div>
@@ -420,12 +506,21 @@ export default function HeroPage({ heroId, onBack }) {
                       </h4>
                     </div>
                     {relation.weak.desc && (
-                      <p className="text-xs text-gray-300 leading-relaxed mb-3">{relation.weak.desc}</p>
+                      <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                        {relation.weak.desc}
+                      </p>
                     )}
                     <div className="flex flex-wrap gap-2.5">
                       {relation.weak.heads?.map((h, i) => (
-                        <div key={i} className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow">
-                          <img src={h} alt="Weak against hero" className="w-full h-full object-cover" />
+                        <div
+                          key={i}
+                          className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-gray-950 shadow"
+                        >
+                          <img
+                            src={h}
+                            alt="Weak against hero"
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                       ))}
                     </div>
@@ -435,20 +530,32 @@ export default function HeroPage({ heroId, onBack }) {
             )}
 
             {/* Tab 5: Combos */}
-            {activeTab === 'combos' && combos.length > 0 && (
+            {activeTab === "combos" && combos.length > 0 && (
               <div className="space-y-4">
                 {combos.map((c) => (
-                  <div key={c.id} className="rounded-2xl border border-white/10 bg-gray-900/80 p-5">
+                  <div
+                    key={c.id}
+                    className="rounded-2xl border border-white/10 bg-gray-900/80 p-5"
+                  >
                     <h4 className="font-bold text-amber-400 text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5">
                       <i className="fa-solid fa-bolt"></i>
                       <span>{c.title}</span>
                     </h4>
-                    <p className="text-xs text-gray-300 leading-relaxed mb-3.5">{c.desc}</p>
+                    <p className="text-xs text-gray-300 leading-relaxed mb-3.5">
+                      {c.desc}
+                    </p>
                     {c.skills?.length > 0 && (
                       <div className="flex flex-wrap items-center gap-2.5 bg-gray-950/80 p-3 rounded-xl border border-white/5">
                         {c.skills.map((ic, i) => (
-                          <div key={i} className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-gray-900 p-1">
-                            <img src={ic} alt={`Skill step ${i + 1}`} className="w-full h-full object-contain" />
+                          <div
+                            key={i}
+                            className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 bg-gray-900 p-1"
+                          >
+                            <img
+                              src={ic}
+                              alt={`Skill step ${i + 1}`}
+                              className="w-full h-full object-contain"
+                            />
                             <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-amber-400 text-gray-950 text-[10px] font-bold flex items-center justify-center">
                               {i + 1}
                             </span>
@@ -462,9 +569,9 @@ export default function HeroPage({ heroId, onBack }) {
             )}
 
             {/* Tab 6: Interactive Chat Bot */}
-            {activeTab === 'bot' && (
+            {activeTab === "bot" && (
               <div>
-                <HeroChatBot hero={hero} />
+                <HeroChatBot hero={hero} stats={stats} combos={combos} />
               </div>
             )}
           </div>
