@@ -1,5 +1,9 @@
 // src/components/bot/HeroChatBot.jsx
-// Komponen Chatbot AI Hero dengan dukungan visual card (Stats, Skills, Combo) & parsing JSON dari API GPT-3.5
+// Komponen Chatbot AI Hero dengan dukungan Visual Lengkap:
+// - Kombo Team Fight & Laning (lengkap dengan teks deskripsi & ikon skill berurutan)
+// - Rekan Sinergi Terbaik & Duet Sinergi (lengkap dengan foto avatar hero)
+// - Kuat Melawan / Lemah Melawan (lengkap dengan avatar hero counter)
+// - Statistik Win Rate & Skillset
 
 import React, { useState, useRef, useEffect } from "react";
 import { aiChatService } from "../../services/aiChatService.js";
@@ -9,7 +13,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
     {
       id: 1,
       sender: "bot",
-      text: `Halo! Saya adalah asisten AI resmi untuk ${hero?.name || "hero ini"}. Kamu bisa bertanya apa saja seputar saya (skill, winrate, kombo, build), atau gunakan perintah cepat seperti /test, /nama, dan /id!`,
+      text: `Halo! Saya adalah asisten AI resmi untuk ${hero?.name || "hero ini"}. Kamu bisa menanyakan Rekan Sinergi Terbaik, Rekomendasi Kombo Team Fight/Laning, Counter Hero, atau statistik winrate. Semua dilengkapi dengan visual dan gambar resmi!`,
       visualType: "none",
       visualData: null,
       time: new Date().toLocaleTimeString([], {
@@ -50,78 +54,11 @@ export default function HeroChatBot({ hero, stats, combos }) {
     setInputText("");
     setIsTyping(true);
 
-    // Cek shortcut perintah dasar instan jika user menggunakan /test, /nama, /id
-    const cmd = trimmed.toLowerCase();
-    if (cmd === "/test") {
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "bot",
-            text: `Nama hero: ${hero?.name || "Unknown"}`,
-            visualType: "none",
-            visualData: null,
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          },
-        ]);
-      }, 300);
-      return;
-    }
-
-    if (cmd === "/nama") {
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "bot",
-            text: `${hero?.name || "Unknown"}`,
-            visualType: "none",
-            visualData: null,
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          },
-        ]);
-      }, 300);
-      return;
-    }
-
-    if (cmd === "/id") {
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "bot",
-            text: `Hero ID: #${hero?.heroId || "-"}`,
-            visualType: "none",
-            visualData: null,
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          },
-        ]);
-      }, 300);
-      return;
-    }
-
-    // Panggil AI API dengan data hero lengkap
+    // Panggil API AI backend (/api/ai/:id?text=...)
     try {
       const aiResponse = await aiChatService.askHeroAI({
         userQuestion: trimmed,
         hero,
-        stats,
-        combos,
       });
 
       const botMsg = {
@@ -162,11 +99,258 @@ export default function HeroChatBot({ hero, stats, combos }) {
     setInputText(cmd);
   };
 
-  // Helper render komponen visual di dalam balon chat bot
+  // Helper render konten visual interaktif di chat bubble
   const renderVisualContent = (visualType, visualData) => {
     if (!visualType || visualType === "none") return null;
 
-    // 1. Visualisasi Statistik & Winrate
+    // 1. Visualisasi Kombo Lengkap (Bisa ada multiple: KOMBO TEAM FIGHT & KOMBO LANING dengan deretan icon skill)
+    if (visualType === "combo") {
+      const comboItems = visualData?.combos || combos || [];
+      if (!comboItems || comboItems.length === 0) return null;
+
+      return (
+        <div className="mt-3 space-y-3 pt-1">
+          {comboItems.map((c, i) => (
+            <div
+              key={i}
+              className="p-3.5 rounded-xl bg-gray-950/90 border border-amber-400/20 shadow-md"
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-5 h-5 rounded-md bg-amber-400 text-gray-950 font-bold text-[10px] flex items-center justify-center">
+                  <i className="fa-solid fa-gamepad"></i>
+                </span>
+                <h5 className="font-bold text-amber-300 text-xs uppercase tracking-wide">
+                  {c.title}
+                </h5>
+              </div>
+
+              {c.desc && (
+                <p className="text-[11px] text-gray-300 leading-relaxed mb-3">
+                  {c.desc}
+                </p>
+              )}
+
+              {/* Tampilan gambar/icon urutan kombo */}
+              {(c.skillIcons || c.skills)?.length > 0 && (
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase font-mono block mb-1.5">
+                    Urutan Eksekusi Jurus:
+                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 bg-gray-900/80 p-2 rounded-lg border border-white/5">
+                    {(c.skillIcons || c.skills).map((iconUrl, stepIdx) => (
+                      <React.Fragment key={stepIdx}>
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-white/15 bg-gray-950 p-0.5 group">
+                          <img
+                            src={iconUrl}
+                            alt={`Step ${stepIdx + 1}`}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.target.style.opacity = "0.3";
+                            }}
+                          />
+                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-tl bg-amber-400 text-gray-950 text-[8px] font-bold flex items-center justify-center">
+                            {stepIdx + 1}
+                          </span>
+                        </div>
+                        {stepIdx < (c.skillIcons || c.skills).length - 1 && (
+                          <i className="fa-solid fa-arrow-right text-[10px] text-amber-400/60"></i>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // 2. Visualisasi Rekan Sinergi Terbaik (dengan gambar avatar hero)
+    if (visualType === "synergy") {
+      const heroes = visualData?.heroes || [];
+      const duetStats = visualData?.duetStats || [];
+
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-gray-950/90 border border-emerald-500/20 shadow-md space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <h5 className="font-bold text-white text-xs uppercase tracking-wide">
+              {visualData?.title || "Rekan Sinergi Terbaik"}
+            </h5>
+          </div>
+
+          {visualData?.desc && (
+            <p className="text-[11px] text-gray-300 leading-relaxed">
+              {visualData.desc}
+            </p>
+          )}
+
+          {heroes.length > 0 && (
+            <div className="pt-1">
+              <span className="text-[10px] text-gray-400 block mb-1.5 font-mono">
+                Hero Partner:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {heroes.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded-xl border border-white/10 shadow"
+                  >
+                    {h.head && (
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-emerald-400/40 bg-gray-950 shrink-0">
+                        <img
+                          src={h.head}
+                          alt={h.name || "Hero"}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    {h.name && (
+                      <span className="text-[11px] font-medium text-emerald-300">
+                        {h.name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {duetStats.length > 0 && (
+            <div className="pt-2 border-t border-white/5">
+              <span className="text-[10px] text-gray-400 block mb-1.5 font-mono">
+                Duet Winrate Tertinggi:
+              </span>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {duetStats.slice(0, 4).map((d, i) => (
+                  <div
+                    key={i}
+                    className="bg-gray-900 p-1.5 rounded-lg border border-white/5 text-center"
+                  >
+                    {d.head && (
+                      <div className="w-8 h-8 mx-auto rounded-full overflow-hidden mb-1 border border-white/10">
+                        <img
+                          src={d.head}
+                          alt="duet"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className="text-[10px] font-bold text-emerald-400 font-mono block">
+                      {d.winRate}
+                    </span>
+                    <span className="text-[9px] text-gray-400 font-mono block">
+                      {d.increaseWinRate}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 3. Visualisasi Kuat Melawan (Hero Di-counter) dengan gambar
+    if (visualType === "strong") {
+      const heroes = visualData?.heroes || [];
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-gray-950/90 border border-amber-400/20 shadow-md space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <h5 className="font-bold text-white text-xs uppercase tracking-wide">
+              {visualData?.title || "Kuat Melawan (Hero Di-counter)"}
+            </h5>
+          </div>
+
+          {visualData?.desc && (
+            <p className="text-[11px] text-gray-300 leading-relaxed">
+              {visualData.desc}
+            </p>
+          )}
+
+          {heroes.length > 0 && (
+            <div className="pt-1">
+              <div className="flex flex-wrap gap-2">
+                {heroes.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded-xl border border-white/10 shadow"
+                  >
+                    {h.head && (
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-amber-400/40 bg-gray-950 shrink-0">
+                        <img
+                          src={h.head}
+                          alt={h.name || "Hero"}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    {h.name && (
+                      <span className="text-[11px] font-medium text-amber-300">
+                        {h.name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 4. Visualisasi Lemah Melawan (Counter Hero Ini) dengan gambar
+    if (visualType === "weak") {
+      const heroes = visualData?.heroes || [];
+      return (
+        <div className="mt-3 p-3.5 rounded-xl bg-gray-950/90 border border-rose-500/20 shadow-md space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <h5 className="font-bold text-white text-xs uppercase tracking-wide">
+              {visualData?.title || "Lemah Melawan (Counter Hero Ini)"}
+            </h5>
+          </div>
+
+          {visualData?.desc && (
+            <p className="text-[11px] text-gray-300 leading-relaxed">
+              {visualData.desc}
+            </p>
+          )}
+
+          {heroes.length > 0 && (
+            <div className="pt-1">
+              <div className="flex flex-wrap gap-2">
+                {heroes.map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1.5 bg-gray-900 px-2 py-1 rounded-xl border border-white/10 shadow"
+                  >
+                    {h.head && (
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-rose-500/40 bg-gray-950 shrink-0">
+                        <img
+                          src={h.head}
+                          alt={h.name || "Hero"}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    {h.name && (
+                      <span className="text-[11px] font-medium text-rose-300">
+                        {h.name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 5. Visualisasi Statistik Win Rate
     if (visualType === "stats") {
       const wr =
         visualData?.winRate ||
@@ -179,7 +363,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
         (stats ? (stats.banRate * 100).toFixed(2) + "%" : "2.0%");
 
       return (
-        <div className="mt-2.5 p-3 rounded-xl bg-gray-900/90 border border-white/10 space-y-2">
+        <div className="mt-2.5 p-3 rounded-xl bg-gray-950 border border-white/10 space-y-2">
           <div className="flex items-center justify-between text-[11px] font-bold text-amber-400 pb-1 border-b border-white/5">
             <span className="flex items-center gap-1.5">
               <i className="fa-solid fa-chart-pie"></i>
@@ -189,7 +373,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center pt-1">
-            <div className="bg-gray-950 p-2 rounded-lg border border-white/5">
+            <div className="bg-gray-900 p-2 rounded-lg border border-white/5">
               <span className="text-[9px] text-gray-400 block uppercase">
                 Win Rate
               </span>
@@ -197,7 +381,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
                 {wr}
               </span>
             </div>
-            <div className="bg-gray-950 p-2 rounded-lg border border-white/5">
+            <div className="bg-gray-900 p-2 rounded-lg border border-white/5">
               <span className="text-[9px] text-gray-400 block uppercase">
                 Pick Rate
               </span>
@@ -205,7 +389,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
                 {pr}
               </span>
             </div>
-            <div className="bg-gray-950 p-2 rounded-lg border border-white/5">
+            <div className="bg-gray-900 p-2 rounded-lg border border-white/5">
               <span className="text-[9px] text-gray-400 block uppercase">
                 Ban Rate
               </span>
@@ -218,11 +402,11 @@ export default function HeroChatBot({ hero, stats, combos }) {
       );
     }
 
-    // 2. Visualisasi Skillset
+    // 6. Visualisasi Skillset Lengkap
     if (visualType === "skills") {
-      const skillList = hero?.skills || [];
+      const skillList = visualData?.skills || hero?.skills || [];
       return (
-        <div className="mt-2.5 p-3 rounded-xl bg-gray-900/90 border border-white/10 space-y-2">
+        <div className="mt-2.5 p-3 rounded-xl bg-gray-950 border border-white/10 space-y-2">
           <div className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5 pb-1 border-b border-white/5">
             <i className="fa-solid fa-bolt"></i>
             <span>Daftar Skill & Jurus</span>
@@ -232,15 +416,17 @@ export default function HeroChatBot({ hero, stats, combos }) {
             {skillList.slice(0, 4).map((sk, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-2.5 p-1.5 rounded-lg bg-gray-950 border border-white/5"
+                className="flex items-center gap-2.5 p-1.5 rounded-lg bg-gray-900 border border-white/5"
               >
-                <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-900 shrink-0 border border-white/10 p-0.5">
-                  <img
-                    src={sk.icon}
-                    alt={sk.name}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+                {sk.icon && (
+                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-950 shrink-0 border border-white/10 p-0.5">
+                    <img
+                      src={sk.icon}
+                      alt={sk.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold text-white truncate">
                     {sk.name}
@@ -256,58 +442,18 @@ export default function HeroChatBot({ hero, stats, combos }) {
       );
     }
 
-    // 3. Visualisasi Rekomendasi Kombo
-    if (visualType === "combo") {
-      const comboTitle =
-        visualData?.comboTitle ||
-        combos?.[0]?.title ||
-        "Kombo Eksekusi Serangan";
-      const comboSteps = visualData?.comboSteps || [
-        "Skill 2",
-        "Ultimate",
-        "Skill 1",
-        "Basic Attack",
-      ];
-
-      return (
-        <div className="mt-2.5 p-3 rounded-xl bg-gray-900/90 border border-white/10 space-y-2">
-          <div className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5 pb-1 border-b border-white/5">
-            <i className="fa-solid fa-gamepad"></i>
-            <span>{comboTitle}</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            {comboSteps.map((step, idx) => (
-              <React.Fragment key={idx}>
-                <div className="flex items-center gap-1 bg-gray-950 px-2 py-1 rounded-md border border-white/10 text-[11px] font-medium text-gray-200">
-                  <span className="w-4 h-4 rounded-full bg-amber-400 text-gray-950 text-[9px] font-bold flex items-center justify-center">
-                    {idx + 1}
-                  </span>
-                  <span>{step}</span>
-                </div>
-                {idx < comboSteps.length - 1 && (
-                  <i className="fa-solid fa-arrow-right text-[10px] text-gray-500"></i>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
     return null;
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-gray-900/95 overflow-hidden flex flex-col h-[560px] shadow-2xl">
-      {/* Bot Top Header */}
+    <div className="rounded-2xl border border-white/10 bg-gray-900/95 overflow-hidden flex flex-col h-[580px] shadow-2xl">
+      {/* Bot Header */}
       <div className="px-4 py-3 bg-gray-950 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 rounded-full border border-amber-400 bg-white/10 text-gray-950 flex items-center justify-center font-bold text-sm shadow">
+          <div className="relative w-9 h-9 rounded-full border border-amber-400 bg-white/10 text-gray-950 flex items-center justify-center font-bold text-sm shadow">
             <img
               src={hero?.head}
               alt={hero?.name}
-              referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
             />
             <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-gray-950"></span>
@@ -316,11 +462,11 @@ export default function HeroChatBot({ hero, stats, combos }) {
             <h4 className="font-bold text-white text-sm flex items-center gap-2">
               <span>{hero?.name} AI Assistant</span>
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-400/10 text-amber-400 border border-amber-400/20 font-mono">
-                GPT-3.5 API
+                Live Data API
               </span>
             </h4>
             <p className="text-[10px] text-gray-400">
-              Siap menjawab skill, statistik winrate, dan kombo secara visual
+              Kombo bergambar, rekan sinergi, & analisis counter
             </p>
           </div>
         </div>
@@ -332,7 +478,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
         </div>
       </div>
 
-      {/* Chat Messages Area */}
+      {/* Messages Scroll Area */}
       <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
         {messages.map((m) => {
           const isUser = m.sender === "user";
@@ -342,7 +488,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
               className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}
             >
               {!isUser && (
-                <div className="w-7 h-7 rounded-full border bg-white/10 border-amber-400/20 text-amber-400 border border-amber-400/30 flex items-center justify-center text-xs shrink-0 mb-1">
+                <div className="w-7 h-7 rounded-full bg-amber-400/20 border border-amber-400/30 text-amber-400 border border-amber-400/30 flex items-center justify-center text-xs shrink-0 mb-1">
                   <img
                     src={hero?.head}
                     alt={hero?.name}
@@ -352,7 +498,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
               )}
 
               <div
-                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                className={`max-w-[88%] sm:max-w-[80%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                   isUser
                     ? "bg-amber-400 text-gray-950 font-medium rounded-br-none shadow-md"
                     : "bg-gray-800 text-gray-100 rounded-bl-none border border-white/5"
@@ -360,7 +506,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
               >
                 <div className="whitespace-pre-line font-sans">{m.text}</div>
 
-                {/* Elemen Visual (Stats / Skills / Combo) jika ada */}
+                {/* Render Elemen Visual (Kombo bergambar / Partner / Counter) */}
                 {!isUser && renderVisualContent(m.visualType, m.visualData)}
 
                 <div
@@ -381,7 +527,6 @@ export default function HeroChatBot({ hero, stats, combos }) {
           );
         })}
 
-        {/* Typing indicator */}
         {isTyping && (
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-400 border border-amber-400/30 flex items-center justify-center text-xs">
@@ -389,7 +534,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
             </div>
             <div className="bg-gray-800 px-3 py-2 rounded-2xl rounded-bl-none border border-white/5 flex items-center gap-1.5 text-gray-400 text-xs">
               <span className="text-[11px] mr-1 text-gray-300">
-                Menghubungi AI...
+                Menganalisis data hero...
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce"></span>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce [animation-delay:0.2s]"></span>
@@ -405,23 +550,28 @@ export default function HeroChatBot({ hero, stats, combos }) {
       <div className="px-3 py-2 bg-gray-950/90 border-t border-white/5 flex items-center gap-1.5 overflow-x-auto">
         <span className="text-[10px] text-gray-400 uppercase font-semibold shrink-0 mr-1 flex items-center gap-1">
           <i className="fa-solid fa-bolt text-amber-400"></i>
-          <span>Cepat:</span>
+          <span>Coba:</span>
         </span>
         {[
-          { label: "/test", text: "/test" },
-          { label: "/nama", text: "/nama" },
-          { label: "/id", text: "/id" },
+          {
+            label: "Kombo Team Fight & Laning",
+            text: "Bagaimana kombo team fight dan laning kamu?",
+          },
+          {
+            label: "Rekan Sinergi Terbaik",
+            text: "Siapa rekan sinergi terbaik untuk hero ini?",
+          },
+          {
+            label: "Kuat Melawan Siapa?",
+            text: "Kamu kuat melawan hero apa saja?",
+          },
+          {
+            label: "Lemah Melawan Siapa?",
+            text: "Hero apa yang meng-counter kamu?",
+          },
           {
             label: "Berapa winrate kamu?",
-            text: "Berapa winrate dan ban rate kamu saat ini?",
-          },
-          {
-            label: "Apa saja skill kamu?",
-            text: "Jelaskan semua skill dan jurus yang kamu miliki",
-          },
-          {
-            label: "Bagaimana kombo skill kamu?",
-            text: "Berikan rekomendasi kombo skill terbaikmu",
+            text: "Berapa statistik winrate dan ban rate kamu?",
           },
         ].map((btn, i) => (
           <button
@@ -444,7 +594,7 @@ export default function HeroChatBot({ hero, stats, combos }) {
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder={`Tanya apapun seputar ${hero?.name || "hero ini"}... (misal: winrate, skill, kombo)`}
+          placeholder={`Tanya kombo bergambar, rekan sinergi, atau counter ${hero?.name || "hero ini"}...`}
           className="flex-1 bg-gray-900 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 outline-none focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400/30 transition"
         />
         <button

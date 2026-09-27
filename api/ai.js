@@ -104,17 +104,21 @@ async function fetchHeroInfo(heroId) {
     const profileRecord = profileRes?.data?.data?.records?.[0]?.data || null;
     const heroRaw = profileRecord?.hero?.data || {};
 
+    // 1. Ekstrak data Skill lengkap dengan Icon
     const rawSkills = [];
     (heroRaw.heroskilllist || []).forEach((sl) => {
       (sl.skilllist || []).forEach((sk) => {
         if (!rawSkills.some((s) => s.id === sk.skillid)) {
           rawSkills.push({
             id: sk.skillid,
-            name: sk.skillname,
-            icon: sk.skillicon,
+            name: sk.skillname || "",
+            icon: sk.skillicon || "",
             cd: sk["skillcd&cost"] || "",
             desc: sk.skilldesc
-              ? sk.skilldesc.replace(/<[^>]+>/g, "").slice(0, 100)
+              ? sk.skilldesc
+                  .replace(/<[^>]+>/g, "")
+                  .trim()
+                  .slice(0, 160)
               : "",
           });
         }
@@ -131,6 +135,7 @@ async function fetchHeroInfo(heroId) {
       .filter(Boolean)
       .join(", ");
 
+    // 2. Ekstrak Rekan Sinergi Terbaik & Duet Sinergi (Stats)
     const synergyRecord = synergyRes?.data?.data?.records?.[0]?.data || null;
     const stats = synergyRecord
       ? {
@@ -144,29 +149,75 @@ async function fetchHeroInfo(heroId) {
           banRate:
             (Number(synergyRecord.main_hero_ban_rate || 0) * 100).toFixed(2) +
             "%",
+          topDuetHeroes: (synergyRecord.sub_hero || [])
+            .slice(0, 5)
+            .map((sh) => ({
+              heroid: sh.heroid,
+              winRate: (Number(sh.hero_win_rate || 0) * 100).toFixed(2) + "%",
+              increaseWinRate:
+                "+" +
+                (Number(sh.increase_win_rate || 0) * 100).toFixed(2) +
+                "%",
+              head: sh.hero?.data?.head || "",
+            })),
         }
       : null;
 
-    const combos = (comboRes?.data?.data?.records || [])
-      .slice(0, 2)
-      .map((cr) => ({
-        title: cr.data?.title || "Kombo Hero",
-        desc: cr.data?.desc ? cr.data.desc.slice(0, 100) : "",
-      }));
+    // 3. Ekstrak Relasi Matchup Resmi (Rekan Sinergi, Kuat Melawan, Lemah Melawan) dengan foto hero
+    const relRaw = profileRecord?.relation || {};
+    const relation = {
+      assist: {
+        title: "Rekan Sinergi Terbaik",
+        desc: relRaw.assist?.desc || "",
+        heroes: (relRaw.assist?.target_hero || []).map((th) => ({
+          name: th.data?.name || "",
+          head: th.data?.head || "",
+        })),
+      },
+      strong: {
+        title: "Kuat Melawan (Hero Di-counter)",
+        desc: relRaw.strong?.desc || "",
+        heroes: (relRaw.strong?.target_hero || []).map((th) => ({
+          name: th.data?.name || "",
+          head: th.data?.head || "",
+        })),
+      },
+      weak: {
+        title: "Lemah Melawan (Counter Hero Ini)",
+        desc: relRaw.weak?.desc || "",
+        heroes: (relRaw.weak?.target_hero || []).map((th) => ({
+          name: th.data?.name || "",
+          head: th.data?.head || "",
+        })),
+      },
+    };
+
+    // 4. Ekstrak Rekomendasi Kombo Lengkap (Kombo Team Fight, Kombo Laning, dsb.) dengan icon setiap langkah
+    const combos = (comboRes?.data?.data?.records || []).map((cr) => {
+      const cd = cr.data || {};
+      const skillIcons = (cd.skill_id || [])
+        .map((s) => s.data?.skillicon)
+        .filter(Boolean);
+      return {
+        id: cr.id,
+        title: cd.title || "Kombo Skill",
+        desc: cd.desc || "",
+        skillIcons: skillIcons,
+      };
+    });
 
     const result = {
       heroId,
       name:
         heroRaw.name || profileRecord?.hero?.data?.name || `Hero #${heroId}`,
+      head: heroRaw.head || profileRecord?.head || "",
       roles: roles || "Fighter/Mage",
       lanes: lanes || "Lane",
       story: heroRaw.story ? heroRaw.story.slice(0, 180) + "..." : "",
-      skills: rawSkills.slice(0, 4),
+      skills: rawSkills,
       stats,
+      relation,
       combos,
-      dataProfile: profileRecord,
-      dataCombos: comboRes?.data?.data,
-      dataSynergy: synergyRes?.data?.data,
     };
 
     heroCache.set(heroId, result);
@@ -176,10 +227,12 @@ async function fetchHeroInfo(heroId) {
     return {
       heroId,
       name: `Hero #${heroId}`,
+      head: "",
       roles: "-",
       lanes: "-",
       skills: [],
       stats: null,
+      relation: null,
       combos: [],
     };
   }
@@ -211,11 +264,12 @@ export default async function handler(req, res) {
     });
   }
 
-  // 1. Shortcut instan untuk command /test, /nama, /id
   const lowerText = text.trim().toLowerCase();
+
   if (heroId) {
     const hero = await fetchHeroInfo(heroId);
 
+    // Shortcut instan untuk command /test, /nama, /id
     if (lowerText === "/test") {
       return res.status(200).json({
         status: true,
@@ -249,34 +303,85 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. Susun Prompt Sistem + Data Hero + Aturan JSON Balasan
-    const systemPrompt = `Kamu adalah ${hero.name} dari Mobile Legends: Bang Bang (MLBB).
-Jawab pertanyaan user sebagai karakter hero ini atau analis hero ini secara ramah, ringkas dan informatif.
-DATA HERO: ${JSON.stringify(hero)}
+    // Deteksi intent pengguna untuk menyediakan visualisasi dan konteks yang akurat
+    const isComboQuery =
+      lowerText.includes("kombo") ||
+      lowerText.includes("combo") ||
+      lowerText.includes("team fight") ||
+      lowerText.includes("laning") ||
+      lowerText.includes("urutan skill");
 
-PENTING - ATURAN FORMAT OUTPUT:
-Balas HANYA dengan 1 objek JSON valid tanpa markdown, tanpa backticks (\`\`\`json), dan tanpa teks pembuka/penutup.
+    const isSynergyQuery =
+      lowerText.includes("sinergi") ||
+      lowerText.includes("rekan") ||
+      lowerText.includes("duet") ||
+      lowerText.includes("cocok dengan");
+
+    const isStrongCounterQuery =
+      lowerText.includes("kuat melawan") ||
+      lowerText.includes("counter hero") ||
+      lowerText.includes("mengcounter");
+
+    const isWeakCounterQuery =
+      lowerText.includes("lemah melawan") ||
+      lowerText.includes("di counter") ||
+      lowerText.includes("dicounter");
+
+    const isStatsQuery =
+      lowerText.includes("winrate") ||
+      lowerText.includes("ban rate") ||
+      lowerText.includes("pick rate") ||
+      lowerText.includes("stat");
+
+    const isSkillQuery =
+      lowerText.includes("skill") ||
+      lowerText.includes("jurus") ||
+      lowerText.includes("pasif") ||
+      lowerText.includes("ulti");
+
+    // Susun Prompt Sistem dengan DATA LENGKAP Hero (Kombo dengan gambar, Relasi Counter dengan gambar, Stats Sinergi)
+    const systemPrompt = `Kamu adalah ${hero.name} dari Mobile Legends: Bang Bang (MLBB).
+Jawab pertanyaan user sebagai karakter hero ini dengan ramah, jelas dan akurat berdasarkan data resmi berikut:
+
+DATA HERO RESMI:
+Nama: ${hero.name} (#${hero.heroId})
+Role: ${hero.roles}, Lane: ${hero.lanes}
+Skill: ${JSON.stringify(hero.skills.map((s) => ({ name: s.name, cd: s.cd, desc: s.desc })))}
+Statistik Ranked: Win Rate: ${hero.stats?.winRate || "50%"}, Pick: ${hero.stats?.pickRate || "1%"}, Ban: ${hero.stats?.banRate || "2%"}
+Rekan Sinergi Terbaik: "${hero.relation?.assist?.desc || ""}"
+Kuat Melawan (Hero Di-counter): "${hero.relation?.strong?.desc || ""}"
+Lemah Melawan (Counter Hero Ini): "${hero.relation?.weak?.desc || ""}"
+Rekomendasi Kombo Resmi:
+${hero.combos.map((c, i) => `${i + 1}. ${c.title}: ${c.desc}`).join("\n")}
+
+ATURAN FORMAT OUTPUT:
+Balas HANYA dengan 1 objek JSON valid tanpa markdown dan tanpa tanda kutip tiga (\`\`\`json).
 Format JSON:
 {
-  "msg": "isi jawaban utama kamu secara ramah, ringkas dan informatif",
-  "visualType": "none | stats | skills | combo",
-  "visualData": {
-    "winRate": "${hero.stats?.winRate || "50%"}",
-    "pickRate": "${hero.stats?.pickRate || "1%"}",
-    "banRate": "${hero.stats?.banRate || "2%"}",
-    "skills": ["skill 1", "skill 2"],
-    "comboTitle": "judul kombo",
-    "comboSteps": ["skill 1", "skill 2", "ult"]
-  }
-}
-Catatan visualType:
-- Gunakan "stats" jika user menanyakan winrate, banrate, pickrate, performa.
-- Gunakan "skills" jika user menanyakan skill, jurus, pasif.
-- Gunakan "combo" jika user menanyakan kombo skill atau trik serangan.
-- Gunakan "none" untuk obrolan umum, salam, atau lainnya.`;
+  "msg": "penjelasan lengkap yang kamu sampaikan ke user mengenai pertanyaan mereka",
+  "visualType": "${
+    isComboQuery
+      ? "combo"
+      : isSynergyQuery
+        ? "synergy"
+        : isStrongCounterQuery
+          ? "strong"
+          : isWeakCounterQuery
+            ? "weak"
+            : isStatsQuery
+              ? "stats"
+              : isSkillQuery
+                ? "skills"
+                : "none"
+  }",
+  "visualData": null
+}`;
 
     const fullPrompt = `${systemPrompt}\nUser: ${text}\nOutput JSON:`;
     const aiApiUrl = `${AI_BASE_URL}/gpt-3.5-turbo?text=${encodeURIComponent(fullPrompt)}`;
+
+    let responseMsg = "";
+    let visualType = "none";
 
     try {
       const aiRes = await axios.get(aiApiUrl, { timeout: 15000 });
@@ -285,7 +390,6 @@ Catatan visualType:
         aiRes.data?.data ||
         (typeof aiRes.data === "string" ? aiRes.data : "");
 
-      // Parse JSON
       let clean = (rawText || "")
         .replace(/```json/gi, "")
         .replace(/```/g, "")
@@ -305,37 +409,94 @@ Catatan visualType:
       }
 
       if (parsed) {
-        return res.status(200).json({
-          status: true,
-          heroId,
-          heroName: hero.name,
-          msg: parsed.msg || parsed.message || parsed.text || rawText,
-          visualType: parsed.visualType || "none",
-          visualData: parsed.visualData || null,
-        });
+        responseMsg = parsed.msg || parsed.message || parsed.text || rawText;
+        visualType = parsed.visualType || "none";
+      } else {
+        responseMsg = rawText;
       }
-
-      // Jika AI membalas teks biasa
-      return res.status(200).json({
-        status: true,
-        heroId,
-        heroName: hero.name,
-        msg: rawText || `Halo! Saya adalah ${hero.name}.`,
-        visualType: "none",
-        visualData: null,
-      });
     } catch (err) {
       console.warn("AI API upstream error:", err.message);
-      // Fallback response jika external API error
-      return res.status(200).json({
-        status: true,
-        heroId,
-        heroName: hero.name,
-        msg: `Halo! Saya adalah ${hero.name}, hero ${hero.roles} yang bertarung di ${hero.lanes}. ID saya adalah #${hero.heroId}.`,
-        visualType: lowerText.includes("winrate") ? "stats" : "none",
-        visualData: hero.stats || null,
-      });
+      // Fallback pesan ramah berdasarkan data
+      if (isComboQuery && hero.combos.length > 0) {
+        responseMsg = `Berikut adalah rekomendasi kombo skill resmi saya:\n\n${hero.combos
+          .map((c) => `• ${c.title.toUpperCase()}\n${c.desc}`)
+          .join("\n\n")}`;
+      } else if (isSynergyQuery && hero.relation?.assist?.desc) {
+        responseMsg = `Rekan Sinergi Terbaik saya:\n${hero.relation.assist.desc}`;
+      } else if (isStrongCounterQuery && hero.relation?.strong?.desc) {
+        responseMsg = `Saya sangat kuat saat melawan:\n${hero.relation.strong.desc}`;
+      } else if (isWeakCounterQuery && hero.relation?.weak?.desc) {
+        responseMsg = `Hati-hati, saya cenderung lemah saat berhadapan dengan:\n${hero.relation.weak.desc}`;
+      } else {
+        responseMsg = `Halo! Saya adalah ${hero.name}, hero ${hero.roles} di ${hero.lanes}.`;
+      }
     }
+
+    // Tentukan visualType final jika model AI mengembalikan 'none' tetapi user jelas menanyakan fitur visual
+    if (visualType === "none") {
+      if (isComboQuery && hero.combos.length > 0) visualType = "combo";
+      else if (isSynergyQuery) visualType = "synergy";
+      else if (isStrongCounterQuery) visualType = "strong";
+      else if (isWeakCounterQuery) visualType = "weak";
+      else if (isStatsQuery) visualType = "stats";
+      else if (isSkillQuery) visualType = "skills";
+    }
+
+    // Bangun visualData kaya gambar dari data resmi Moonton
+    let visualData = null;
+
+    if (visualType === "combo" && hero.combos.length > 0) {
+      visualData = {
+        combos: hero.combos.map((c) => ({
+          title: c.title,
+          desc: c.desc,
+          skillIcons: c.skillIcons,
+        })),
+      };
+    } else if (visualType === "synergy") {
+      visualData = {
+        title: hero.relation?.assist?.title || "Rekan Sinergi Terbaik",
+        desc: hero.relation?.assist?.desc || "",
+        heroes: hero.relation?.assist?.heroes || [],
+        duetStats: hero.stats?.topDuetHeroes || [],
+      };
+    } else if (visualType === "strong") {
+      visualData = {
+        title: hero.relation?.strong?.title || "Kuat Melawan (Hero Di-counter)",
+        desc: hero.relation?.strong?.desc || "",
+        heroes: hero.relation?.strong?.heroes || [],
+      };
+    } else if (visualType === "weak") {
+      visualData = {
+        title: hero.relation?.weak?.title || "Lemah Melawan (Counter Hero Ini)",
+        desc: hero.relation?.weak?.desc || "",
+        heroes: hero.relation?.weak?.heroes || [],
+      };
+    } else if (visualType === "stats") {
+      visualData = {
+        winRate: hero.stats?.winRate || "50.0%",
+        pickRate: hero.stats?.pickRate || "1.0%",
+        banRate: hero.stats?.banRate || "2.0%",
+      };
+    } else if (visualType === "skills") {
+      visualData = {
+        skills: hero.skills.map((s) => ({
+          name: s.name,
+          icon: s.icon,
+          cd: s.cd,
+          desc: s.desc,
+        })),
+      };
+    }
+
+    return res.status(200).json({
+      status: true,
+      heroId,
+      heroName: hero.name,
+      msg: responseMsg,
+      visualType,
+      visualData,
+    });
   }
 
   // Jika tanpa ID hero (general MLBB chat)
