@@ -164,6 +164,9 @@ async function fetchHeroInfo(heroId) {
       skills: rawSkills.slice(0, 4),
       stats,
       combos,
+      dataProfile: profileRecord,
+      dataCombos: comboRes?.data?.data,
+      dataSynergy: synergyRes?.data?.data,
     };
 
     heroCache.set(heroId, result);
