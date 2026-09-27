@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/ai/:id",
+      "destination": "/api/ai?id=:id"
+    },
+    {
+      "source": "/api/ai",
+      "destination": "/api/ai"
+    },
+    {
       "source": "/api/hero/:id",
       "destination": "/api/hero?id=:id"
     },
